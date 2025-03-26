@@ -13,6 +13,7 @@ type Constant struct {
 
 type Enum struct {
 	Name      string
+	Prefix    string
 	Comment   string
 	Constants []Constant
 	NameTags  map[string]string

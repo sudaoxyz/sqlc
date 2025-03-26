@@ -5,6 +5,21 @@ import (
 	"unicode"
 )
 
+func TrimPrefix(s, prefix string) string {
+	return strings.ToLower(strings.TrimPrefix(s, prefix))
+}
+
+func NoNullType(t string) string {
+	switch t {
+	case "sql.NullString":
+		return "string"
+	case "sql.NullInt64":
+		return "int64"
+	default:
+		return t
+	}
+}
+
 func LowerTitle(s string) string {
 	if s == "" {
 		return s
