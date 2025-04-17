@@ -30,11 +30,11 @@ func NoNullType(t string) string {
 func ToNullType(t, value string) string {
 	switch t {
 	case "sql.NullString":
-		return fmt.Sprintf("sql.NullString{String:%s,Valid: %s != \"\"}", value)
+		return fmt.Sprintf("sql.NullString{String:%s,Valid: %s != \"\"}", value, value)
 	case "sql.NullInt64":
-		return fmt.Sprintf("sql.NullInt64{Int64:%s,Valid: %s != 0}", value)
+		return fmt.Sprintf("sql.NullInt64{Int64:%s,Valid: %s != 0}", value, value)
 	case "sql.NullTime":
-		return fmt.Sprintf("sql.NullTime{Time:%s,Valid: %s.IsZero()}", value)
+		return fmt.Sprintf("sql.NullTime{Time:%s,Valid: %s.IsZero()}", value, value)
 	default:
 		return value
 	}
