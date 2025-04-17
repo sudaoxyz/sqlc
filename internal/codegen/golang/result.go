@@ -51,6 +51,7 @@ func buildEnums(req *plugin.GenerateRequest, options *opts.Options) []Enum {
 				})
 				seen[value] = struct{}{}
 			}
+			e.Prefix = longestPrefix(e.Constants)
 			enums = append(enums, e)
 		}
 	}
@@ -60,7 +61,39 @@ func buildEnums(req *plugin.GenerateRequest, options *opts.Options) []Enum {
 	return enums
 }
 
-func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
+// longestPrefix 寻找以下划线分隔的最长公共前缀，确保前缀包含最后的下划线
+func longestPrefix(constants []Constant) string {
+	if len(constants) == 0 {
+		return ""
+	}
+
+	// 以第一个字符串为基准
+	base := constants[0]
+	baseParts := strings.Split(base.Value, "_")
+
+	// 从最长可能的前缀开始检查
+	for i := len(baseParts); i > 0; i-- {
+		prefix := strings.Join(baseParts[:i], "_") + "_" // 确保前缀以 _ 结尾
+
+		// 检查所有字符串是否以该前缀开头
+		allMatch := true
+		for _, c := range constants {
+			if !strings.HasPrefix(c.Value, prefix) {
+				allMatch = false
+				break
+			}
+		}
+
+		// 如果所有字符串都匹配，返回前缀（包含最后的下划线）
+		if allMatch {
+			return prefix
+		}
+	}
+
+	return "" // 没有公共前缀
+}
+
+func buildStructs(req *plugin.GenerateRequest, enums []Enum, options *opts.Options) []Struct {
 	var structs []Struct
 	for _, schema := range req.Catalog.Schemas {
 		if schema.Name == "pg_catalog" || schema.Name == "information_schema" {
@@ -96,9 +129,12 @@ func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
 				addExtraGoStructTags(tags, req, options, column)
 				s.Fields = append(s.Fields, Field{
 					Name:    StructName(column.Name, options),
+					DBName:  column.Name,
 					Type:    goType(req, options, column),
 					Tags:    tags,
+					Column:  column,
 					Comment: column.Comment,
+					IsEnum:  isEnum(column, enums, options),
 				})
 			}
 			structs = append(structs, s)
@@ -183,7 +219,7 @@ func argName(name string) string {
 	return out
 }
 
-func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []Struct) ([]Query, error) {
+func buildQueries(req *plugin.GenerateRequest, enums []Enum, options *opts.Options, structs []Struct) ([]Query, error) {
 	qs := make([]Query, 0, len(req.Queries))
 	for _, query := range req.Queries {
 		if query.Name == "" {
@@ -247,7 +283,7 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 					Column: p.Column,
 				})
 			}
-			s, err := columnsToStruct(req, options, gq.MethodName+"Params", cols, false)
+			s, err := columnsToStruct(req, enums, options, gq.MethodName+"Params", cols, false)
 			if err != nil {
 				return nil, err
 			}
@@ -310,7 +346,7 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 					})
 				}
 				var err error
-				gs, err = columnsToStruct(req, options, gq.MethodName+"Row", columns, true)
+				gs, err = columnsToStruct(req, enums, options, gq.MethodName+"Row", columns, true)
 				if err != nil {
 					return nil, err
 				}
@@ -351,7 +387,7 @@ func putOutColumns(query *plugin.Query) bool {
 // JSON tags: count, count_2, count_2
 //
 // This is unlikely to happen, so don't fix it yet
-func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name string, columns []goColumn, useID bool) (*Struct, error) {
+func columnsToStruct(req *plugin.GenerateRequest, enums []Enum, options *opts.Options, name string, columns []goColumn, useID bool) (*Struct, error) {
 	gs := Struct{
 		Name: name,
 	}
@@ -395,6 +431,7 @@ func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name st
 			DBName: colName,
 			Tags:   tags,
 			Column: c.Column,
+			IsEnum: argIsEnum(c.Column, enums, options),
 		}
 		if c.embed == nil {
 			f.Type = goType(req, options, c.Column)
@@ -447,4 +484,28 @@ func checkIncompatibleFieldTypes(fields []Field) error {
 		}
 	}
 	return nil
+}
+
+func argIsEnum(column *plugin.Column, enums []Enum, options *opts.Options) bool {
+	if column == nil || column.Table == nil || column.Type == nil {
+		return false
+	}
+
+	name := StructName(column.Type.Name, options)
+	for _, enum := range enums {
+		if enum.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func isEnum(column *plugin.Column, enums []Enum, options *opts.Options) bool {
+	name := StructName(column.Table.Schema+"_"+column.Type.Name, options)
+	for _, enum := range enums {
+		if enum.Name == name {
+			return true
+		}
+	}
+	return false
 }

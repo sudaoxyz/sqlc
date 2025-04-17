@@ -1,7 +1,12 @@
 package golang
 
-import "embed"
+import "os"
 
-//go:embed templates/*
-//go:embed templates/*/*
-var templates embed.FS
+func templatePattern() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	return wd + "/templates/*.tmpl", nil
+}

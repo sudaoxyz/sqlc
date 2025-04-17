@@ -71,19 +71,19 @@ func (t *tmplCtx) codegenQueryMethod(q Query) string {
 		if t.EmitPreparedQueries {
 			return "q.queryRow"
 		}
-		return db + ".QueryRowContext"
+		return db + ".QueryRow"
 
 	case ":many":
 		if t.EmitPreparedQueries {
 			return "q.query"
 		}
-		return db + ".QueryContext"
+		return db + ".Query"
 
 	default:
 		if t.EmitPreparedQueries {
 			return "q.exec"
 		}
-		return db + ".ExecContext"
+		return db + ".Exec"
 	}
 }
 
@@ -115,8 +115,8 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 	}
 
 	enums := buildEnums(req, options)
-	structs := buildStructs(req, options)
-	queries, err := buildQueries(req, options, structs)
+	structs := buildStructs(req, enums, options)
+	queries, err := buildQueries(req, enums, options, structs)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,13 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 	}
 
 	funcMap := template.FuncMap{
+		"noNullType": sdk.NoNullType,
+		"toNullType": sdk.ToNullType,
+		"trimPrefix": sdk.TrimPrefix,
+		"trimSuffix": sdk.TrimSuffix,
 		"lowerTitle": sdk.LowerTitle,
+		"title":      sdk.Title,
+
 		"comment":    sdk.DoubleSlashComment,
 		"escape":     sdk.EscapeBacktick,
 		"imports":    i.Imports,
@@ -220,14 +226,15 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		"queryRetval":         tctx.codegenQueryRetval,
 	}
 
+	pattern, err := templatePattern()
+	if err != nil {
+		return nil, err
+	}
+
 	tmpl := template.Must(
 		template.New("table").
 			Funcs(funcMap).
-			ParseFS(
-				templates,
-				"templates/*.tmpl",
-				"templates/*/*.tmpl",
-			),
+			ParseGlob(pattern),
 	)
 
 	output := map[string]string{}
