@@ -205,6 +205,8 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 	}
 
 	funcMap := template.FuncMap{
+		"mkSlice":    sdk.MkSlice,
+		"append":     sdk.Append,
 		"noNullType": sdk.NoNullType,
 		"toNullType": sdk.ToNullType,
 		"trimPrefix": sdk.TrimPrefix,

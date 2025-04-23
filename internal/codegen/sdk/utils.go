@@ -6,6 +6,14 @@ import (
 	"unicode"
 )
 
+func MkSlice(args ...interface{}) []interface{} {
+	return args
+}
+
+func Append(s []interface{}, item interface{}) []interface{} {
+	return append(s, item)
+}
+
 func TrimPrefix(s, prefix string) string {
 	return strings.ToLower(strings.TrimPrefix(s, prefix))
 }
