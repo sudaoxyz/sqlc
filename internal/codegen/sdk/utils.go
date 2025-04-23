@@ -6,6 +6,14 @@ import (
 	"unicode"
 )
 
+func Add(a, b int) int {
+	return a + b
+}
+
+func Sub(a, b int) int {
+	return a - b
+}
+
 func Contains(s []interface{}, item interface{}) bool {
 	for _, v := range s {
 		if v == item {
