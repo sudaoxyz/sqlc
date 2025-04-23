@@ -6,6 +6,16 @@ import (
 	"unicode"
 )
 
+func Contains(s []interface{}, item interface{}) bool {
+	for _, v := range s {
+		if v == item {
+			return true
+		}
+	}
+
+	return false
+}
+
 func MkSlice(args ...interface{}) []interface{} {
 	return args
 }
